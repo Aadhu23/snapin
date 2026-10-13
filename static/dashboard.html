@@ -17,18 +17,23 @@
             <div class="logo">
                 <h2 style="font-weight: 700; color: white;">Snap <span style="color: var(--primary);">IN</span></h2>
             </div>
-            <div class="status-badge">
-                <div class="status-dot" id="connection-dot"></div>
-                <span id="connection-text">Disconnected</span>
+            <div class="header-right">
+                <span id="user-label" class="user-label"></span>
+                <div class="status-badge">
+                    <div class="status-dot" id="connection-dot"></div>
+                    <span id="connection-text">Disconnected</span>
+                </div>
+                <button id="logout-btn" class="btn-logout">Log out</button>
             </div>
         </header>
 
         <div class="main-content">
             <div class="video-container">
                 <video id="webcam" autoplay playsinline muted></video>
-                <div class="overlay-message" id="alert-overlay">
+                <div class="overlay-message" id="alert-overlay" role="alert" aria-live="assertive">
                     <h2>⚠️ ALERT</h2>
                     <p>Phone Detected! Get back to work!</p>
+                    <p class="alert-detail" id="alert-detail"></p>
                 </div>
             </div>
 
@@ -40,7 +45,7 @@
                     </svg>
                     <span>Turn On Guard</span>
                 </button>
-                <button class="btn-toggle" onclick="alert('Stats Coming Soon!')"
+                <button id="stats-btn" class="btn-toggle"
                     style="background: var(--primary);">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">

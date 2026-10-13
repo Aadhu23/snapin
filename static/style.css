@@ -115,6 +115,20 @@ button.btn-primary:hover {
     box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
 }
 
+.login-error {
+    color: var(--danger);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    min-height: 1.2em;
+    text-align: left;
+}
+
+button.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* --- Dashboard Screen --- */
 #dashboard-screen {
     display: flex;
@@ -130,6 +144,38 @@ header {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.user-label:empty {
+    display: none;
+}
+
+.btn-logout {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-logout:hover {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.35);
 }
 
 .status-badge {
@@ -219,6 +265,20 @@ video {
     100% {
         transform: translate(-50%, -50%) scale(1);
     }
+}
+
+/* The overlay must sit above the video and never intercept pointer events,
+   otherwise it swallows clicks meant for the controls underneath. */
+.overlay-message {
+    pointer-events: none;
+}
+
+.alert-detail {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0.85;
+    font-variant-numeric: tabular-nums;
 }
 
 .overlay-message h2 {

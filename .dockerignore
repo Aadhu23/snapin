@@ -1,5 +1,13 @@
 venv/
+.venv/
+.venv-wsl/
 __pycache__/
+*.py[cod]
 .git/
 .env
-*.pyc
+.env.*
+!.env.example
+*.log
+backend/users.json
+backend/.secret
+debug_input*.jpg

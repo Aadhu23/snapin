@@ -1,12 +1,15 @@
-fastapi
-uvicorn[standard]
-gunicorn
-ultralytics
-opencv-python-headless
-numpy
-python-dotenv
-websockets
+# Web framework
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+gunicorn>=22.0,<24.0
 
+# Computer vision / detection
+ultralytics>=8.3,<9.0
+opencv-python-headless>=4.9
+numpy>=1.26
 
+# Config
+python-dotenv>=1.0
 
-
+# Test client
+websockets>=12.0

@@ -1,6 +1,7 @@
 # Python virtual environment
 venv/
 .venv/
+.venv-wsl/
 
 # Python cache
 __pycache__/
@@ -11,6 +12,15 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# User credentials (regenerate with backend/manage_users.py)
+backend/users.json
+
+# Auto-generated signing secret, so sessions survive a restart
+backend/.secret
+
+# Runtime output
+debug_input*.jpg
 
 # IDE / editor
 .vscode/
@@ -33,5 +43,4 @@ Thumbs.db
 *.onnx
 
 # Test/debug outputs
-debug_input.jpg
 test_phone.png
