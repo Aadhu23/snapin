@@ -292,18 +292,27 @@ async def api_me(request: Request):
 
 @app.get("/api/health")
 async def api_health():
-    """Liveness probe that also surfaces model and database status."""
+    """Report whether the app can actually do its job.
+
+    Returns 503 when either the model or the database is unavailable, so an
+    orchestrator can act on the status code instead of having to parse the
+    body. The JSON always names which part is broken.
+    """
     from fastapi.concurrency import run_in_threadpool
+    from fastapi.responses import JSONResponse
 
     db_ok, db_error = await run_in_threadpool(db.available)
+    model_ok = detector is not None
+    healthy = model_ok and db_ok
 
-    return {
-        "status": "ok" if (detector is not None and db_ok) else "degraded",
-        "model_loaded": detector is not None,
+    payload = {
+        "status": "ok" if healthy else "degraded",
+        "model_loaded": model_ok,
         "model_path": getattr(detector, "model_path", None),
         "database": "ok" if db_ok else db_error,
         "google_sign_in": google_auth.is_configured(),
     }
+    return JSONResponse(payload, status_code=200 if healthy else 503)
 
 
 # --------------------------------------------------------------------------

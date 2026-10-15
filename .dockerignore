@@ -11,3 +11,12 @@ __pycache__/
 backend/users.json
 backend/.secret
 debug_input*.jpg
+
+# Local smoke-test client and its fixtures
+test.py
+test_phone.png
+
+# Weights: the image fetches these at build time rather than copying them in
+*.pt
+*.pth
+*.onnx
