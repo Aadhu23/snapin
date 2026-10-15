@@ -44,3 +44,7 @@ Thumbs.db
 
 # Test/debug outputs
 test_phone.png
+
+# Local smoke-test client. Kept out of the repo because it points at a
+# developer machine's server; run it from a local checkout if you need it.
+test.py

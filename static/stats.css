@@ -1,0 +1,294 @@
+/* Stats panel. Extends the shared tokens in style.css rather than
+   introducing a second visual language. */
+
+/* Layout ---------------------------------------------------------------- */
+
+.stats-main {
+    flex: 1;
+    width: 100%;
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: var(--sp-6) var(--sp-5) var(--sp-7);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.stats-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    flex-wrap: wrap;
+}
+
+.stats-title {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.stats-sub {
+    margin-top: 2px;
+    color: var(--text-tertiary);
+    font-size: 13px;
+}
+
+.segmented {
+    display: inline-flex;
+    padding: 2px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.segmented-btn {
+    padding: 4px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+.segmented-btn:hover {
+    color: var(--text);
+}
+
+.segmented-btn[aria-pressed='true'] {
+    background: var(--accent);
+    color: var(--accent-fg);
+}
+
+/* Metric tiles ---------------------------------------------------------- */
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-3);
+}
+
+.metric {
+    padding: var(--sp-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.metric-label {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.metric-value {
+    margin-top: var(--sp-2);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.metric-note {
+    margin-top: var(--sp-1);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Cards ----------------------------------------------------------------- */
+
+.card {
+    padding: var(--sp-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-4);
+}
+
+.card-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.card-note {
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3);
+}
+
+/* Charts ----------------------------------------------------------------
+   Plain flex columns rather than a charting library: the data is a handful of
+   numbers, and a dependency to draw nine bars would cost more than it saves. */
+
+.chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 160px;
+}
+
+.chart-hours {
+    height: 120px;
+}
+
+.bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+    min-width: 0;
+}
+
+.bar-stack {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+    gap: 1px;
+}
+
+.bar {
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    transition: opacity var(--transition);
+    min-height: 2px;
+}
+
+.bar-focus {
+    background: var(--accent);
+}
+
+.bar-phone {
+    background: var(--danger);
+    border-radius: 0 0 2px 2px;
+}
+
+.bar-col:hover .bar {
+    opacity: 0.78;
+}
+
+.bar-label {
+    margin-top: var(--sp-2);
+    color: var(--text-tertiary);
+    font-size: 10px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.legend {
+    display: flex;
+    gap: var(--sp-4);
+    margin-top: var(--sp-3);
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.legend-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.legend-focus {
+    background: var(--accent);
+}
+
+.legend-phone {
+    background: var(--danger);
+}
+
+/* Episode list ---------------------------------------------------------- */
+
+.episodes {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-height: 232px;
+    overflow-y: auto;
+}
+
+.episode {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-2) 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.episode:last-child {
+    border-bottom: none;
+}
+
+.episode-when {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.episode-sep {
+    color: var(--text-tertiary);
+}
+
+.episode-meta {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.episode-dur {
+    margin-left: auto;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Responsive ------------------------------------------------------------ */
+
+@media (max-width: 860px) {
+    .metrics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .card-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-main {
+        padding: var(--sp-5) var(--sp-4) var(--sp-6);
+    }
+}

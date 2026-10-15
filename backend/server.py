@@ -31,11 +31,39 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect  # noqa: E402
-from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
+# Load .env BEFORE anything reads configuration. Several settings below are
+# module-level constants, and db.migrate() needs the database credentials, so
+# this has to happen first. A real environment variable still wins, which is
+# what makes `SNAPIN_PORT=9000 python backend/server.py` work.
+import env as env_loader  # noqa: E402
+
+env_loader.load_env()
+
 import auth  # noqa: E402
+import db  # noqa: E402
+import ratelimit  # noqa: E402
+import google_auth  # noqa: E402
+import repository  # noqa: E402
+import stats as stats_store  # noqa: E402
 from detector import StudyGuardDetector  # noqa: E402
+
+logging.basicConfig(
+    level=os.environ.get("SNAPIN_LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+)
+log = logging.getLogger("snapin.server")
+
+# Create tables and repair anything a crash left open.
+try:
+    db.migrate()
+    # Any episode left open by a crash would report an inflated duration.
+    stats_store.close_stale_distractions()
+except Exception as exc:  # noqa: BLE001 - keep serving so health reports it
+    log.error("Database unavailable: %s", exc)
+    db.close_pool()
 
 # --------------------------------------------------------------------------
 # Configuration
@@ -53,12 +81,6 @@ ALLOWED_ORIGINS = [
     for origin in os.environ.get("SNAPIN_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
-
-logging.basicConfig(
-    level=os.environ.get("SNAPIN_LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-)
-log = logging.getLogger("snapin.server")
 
 # --------------------------------------------------------------------------
 # App
@@ -101,9 +123,80 @@ except Exception as exc:  # noqa: BLE001 - keep serving so /api/health reports i
 # --------------------------------------------------------------------------
 
 
+@app.post("/api/register")
+async def api_register(request: Request):
+    """Create an account and sign in, so sign-up is one round trip."""
+    from fastapi.concurrency import run_in_threadpool
+
+    client = ratelimit.client_address(request)
+
+    allowed, retry_after = ratelimit.register_limiter.check("register", client)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many sign-up attempts. Try again in {retry_after}s.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail="Expected a JSON body.")
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Expected a JSON object.")
+
+    # ValidationError messages are written for humans, so they go straight
+    # back to the user rather than being logged and replaced.
+    try:
+        username = auth.validate_username(str(payload.get("username", "")))
+        password = auth.validate_password(str(payload.get("password", "")))
+        email = auth.validate_email(payload.get("email"))
+    except auth.ValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if payload.get("confirm") is not None and payload["confirm"] != password:
+        raise HTTPException(status_code=400, detail="Passwords do not match.")
+
+    row = await run_in_threadpool(
+        repository.register_password_user,
+        username,
+        auth.hash_password(password),
+        email,
+    )
+    if row is None:
+        ratelimit.register_limiter.record_failure("register", client)
+        raise HTTPException(
+            status_code=409,
+            detail=f"The username {username!r} is taken. Try signing in instead.",
+        )
+
+    ratelimit.register_limiter.record_success("register", client)
+
+    identity = repository.identity_from_row(row)
+    token = repository.create_session(
+        row["id"], user_agent=request.headers.get("user-agent")
+    )
+
+    response = JSONResponse(
+        {"status": "ok", "user": identity.as_dict(), "created": True},
+        status_code=201,
+    )
+    auth.set_session_cookie(response, token)
+    log.info("Registered %r", username)
+    return response
+
+
 @app.post("/api/login")
 async def api_login(request: Request):
-    """Validate credentials and set a signed session cookie."""
+    """Validate credentials and open a session.
+
+    PBKDF2 at 240k rounds takes tens of milliseconds by design, so the check
+    runs in a worker thread. Inline it would stall every other request for the
+    duration.
+    """
+    from fastapi.concurrency import run_in_threadpool
+
     try:
         payload = await request.json()
     except Exception:  # noqa: BLE001 - malformed body
@@ -118,24 +211,74 @@ async def api_login(request: Request):
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password are required.")
 
+    client = ratelimit.client_address(request)
+    allowed, retry_after = ratelimit.login_limiter.check("login", client, username)
+    if not allowed:
+        log.warning("Login rate limit hit for %r from %s", username, client)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {retry_after}s.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     try:
-        identity = auth.authenticate(username, password)
+        row = await run_in_threadpool(_verify_credentials, username, password)
     except auth.AuthError as exc:
-        log.info("Failed login attempt for %r", username)
+        ratelimit.login_limiter.record_failure("login", client, username)
+        if ratelimit.login_limiter.strikes_count("login", client, username) >= 3:
+            ratelimit.login_limiter.penalise("login", client, username)
+        log.info("Failed login attempt for %r from %s", username, client)
         raise HTTPException(status_code=401, detail=str(exc))
 
+    ratelimit.login_limiter.record_success("login", client, username)
+
+    identity = repository.identity_from_row(row)
+    token = repository.create_session(
+        row["id"], user_agent=request.headers.get("user-agent")
+    )
+
     response = JSONResponse({"status": "ok", "user": identity.as_dict()})
-    auth.set_session_cookie(response, identity)
+    auth.set_session_cookie(response, token)
     log.info("User %r logged in", identity.username)
     return response
 
 
+def _verify_credentials(username: str, password: str) -> dict:
+    """Blocking credential check. Never called from the event loop directly."""
+    row = repository.get_user(username)
+
+    if row is None or not row.get("password_hash"):
+        # Burn an equivalent hash so a missing account and a wrong password
+        # take the same time, and neither reveals which usernames exist.
+        auth.hash_password(password)
+        raise auth.AuthError("Invalid username or password.")
+
+    record = repository.decode_password_hash(row["password_hash"])
+    if not auth.verify_password(password, record):
+        raise auth.AuthError("Invalid username or password.")
+
+    return row
+
+
 @app.post("/api/logout")
-async def api_logout():
-    """Clear the session cookie."""
+async def api_logout(request: Request):
+    """Close this session and clear the cookie."""
+    token = request.cookies.get(auth.COOKIE_NAME, "")
+    if token:
+        repository.delete_session(token)
+
     response = JSONResponse({"status": "ok"})
     auth.clear_session_cookie(response)
     return response
+
+
+@app.get("/api/config")
+async def api_config():
+    """Feature flags the login screen needs before anyone is signed in."""
+    return {
+        "status": "ok",
+        "google_sign_in": google_auth.is_configured(),
+    }
 
 
 @app.get("/api/me")
@@ -149,13 +292,268 @@ async def api_me(request: Request):
 
 @app.get("/api/health")
 async def api_health():
-    """Liveness probe that also surfaces model status."""
+    """Liveness probe that also surfaces model and database status."""
+    from fastapi.concurrency import run_in_threadpool
+
+    db_ok, db_error = await run_in_threadpool(db.available)
+
     return {
-        "status": "ok" if detector is not None else "degraded",
+        "status": "ok" if (detector is not None and db_ok) else "degraded",
         "model_loaded": detector is not None,
         "model_path": getattr(detector, "model_path", None),
-        "users_configured": len(auth.load_users()) > 0,
+        "database": "ok" if db_ok else db_error,
+        "google_sign_in": google_auth.is_configured(),
     }
+
+
+# --------------------------------------------------------------------------
+# Stats
+# --------------------------------------------------------------------------
+
+
+@app.get("/api/stats")
+async def api_stats(request: Request, days: int = 7):
+    """Everything the Stats panel needs, in one round trip.
+
+    One endpoint rather than four: the panel renders all at once, and four
+    requests would show a panel whose sections disagreed with each other.
+    """
+    identity = auth.require_identity(request)
+
+    from fastapi.concurrency import run_in_threadpool
+
+    days = max(1, min(days, 365))
+    data = await run_in_threadpool(_build_stats, identity.username, days)
+    return data
+
+
+def _build_stats(username: str, days: int) -> dict:
+    row = repository.get_user(username)
+    if row is None:
+        return {"status": "error", "error": "Unknown user."}
+
+    user_id = row["id"]
+    session = stats_store.get_open_session(user_id)
+
+    return {
+        "status": "ok",
+        "range_days": days,
+        "summary": stats_store.summary(user_id, days=days),
+        "daily": stats_store.daily_breakdown(user_id, days=days),
+        "hourly": stats_store.hourly_pattern(user_id, days=30),
+        "recent": stats_store.recent_distractions(user_id, limit=15),
+        # Lets the panel show a live indicator without a second request.
+        "active_session": (
+            {
+                "id": session["id"],
+                "started_at": session["started_at"].isoformat(),
+                "frames_analyzed": session["frames_analyzed"],
+                "phone_detections": session["phone_detections"],
+            }
+            if session
+            else None
+        ),
+    }
+
+
+# --------------------------------------------------------------------------
+# Google OAuth
+# --------------------------------------------------------------------------
+
+
+@app.get("/api/auth/google")
+async def google_start():
+    """Redirect to Google's consent screen, stashing a signed state cookie."""
+    if not google_auth.is_configured():
+        return JSONResponse(
+            {
+                "status": "not_configured",
+                "error": (
+                    "Google sign-in is not configured. Set GOOGLE_CLIENT_ID and "
+                    "GOOGLE_CLIENT_SECRET; see README for the setup steps."
+                ),
+            },
+            status_code=503,
+        )
+
+    state = google_auth.build_state(auth.get_secret())
+    response = RedirectResponse(google_auth.authorization_url(state), status_code=302)
+    response.set_cookie(
+        google_auth.STATE_COOKIE,
+        state,
+        max_age=google_auth.STATE_TTL_SECONDS,
+        httponly=True,
+        samesite="lax",  # must survive the redirect back from accounts.google.com
+        secure=auth._cookie_secure(),
+        path="/api/auth",
+    )
+    return response
+
+
+@app.get("/api/auth/google/callback")
+async def google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    """Complete the OAuth round trip and establish a local session."""
+    if not google_auth.is_configured():
+        return _login_error_page("Google sign-in is not configured.")
+
+    if error:
+        log.info("Google returned an error: %s", error)
+        return _login_error_page(
+            "Google sign-in was cancelled or refused."
+            if error == "access_denied"
+            else f"Google sign-in failed ({error})."
+        )
+
+    expected_state = request.cookies.get(google_auth.STATE_COOKIE, "")
+    if not google_auth.verify_state(state, auth.get_secret()):
+        log.warning("Rejected Google callback with bad state")
+        return _login_error_page(
+            "That sign-in link expired or was tampered with. Please try again."
+        )
+    if not expected_state or not _constant_time_eq(expected_state, state):
+        log.warning("Rejected Google callback: state cookie mismatch")
+        return _login_error_page("That sign-in link expired. Please try again.")
+    if not code:
+        return _login_error_page("Google did not return an authorization code.")
+
+    try:
+        token = google_auth.exchange_code(code)
+        profile = google_auth.fetch_profile(token)
+    except google_auth.GoogleAuthError as exc:
+        return _login_error_page(str(exc))
+
+    # If a password account already uses this address, do not silently create a
+    # second, empty account. Sign the visitor in and ask them to confirm the
+    # password before attaching the Google identity to it.
+    existing = repository.get_user_by_email(profile.email)
+    if existing is not None:
+        pending = google_auth.build_pending_profile(profile, auth.get_secret())
+        identity = repository.identity_from_row(existing)
+        session_token = repository.create_session(existing["id"])
+
+        response = RedirectResponse("/link-account", status_code=302)
+        auth.set_session_cookie(response, session_token)
+        response.set_cookie(
+            LINK_COOKIE,
+            pending,
+            max_age=google_auth.STATE_TTL_SECONDS,
+            httponly=True,
+            samesite="lax",
+            secure=auth._cookie_secure(),
+            path="/",
+        )
+        response.delete_cookie(google_auth.STATE_COOKIE, path="/api/auth")
+        log.info(
+            "Google sign-in matched existing account %r; awaiting confirmation",
+            existing["username"],
+        )
+        return response
+
+    row = google_auth.upsert_google_user(profile)
+    identity = repository.identity_from_row(row)
+    session_token = repository.create_session(row["id"])
+
+    response = RedirectResponse("/dashboard", status_code=302)
+    auth.set_session_cookie(response, session_token)
+    response.delete_cookie(google_auth.STATE_COOKIE, path="/api/auth")
+    log.info("Google sign-in succeeded for %s", profile.email)
+    return response
+
+
+# --------------------------------------------------------------------------
+# Linking a Google identity to an existing password account
+# --------------------------------------------------------------------------
+
+LINK_COOKIE = "snapin_pending_google"
+
+
+@app.post("/api/link/google")
+async def api_link_google(request: Request):
+    """Attach the pending Google identity to the signed-in account.
+
+    Reached from the Google callback when the address already belongs to a
+    password account. That account's own password is required, so signing up
+    with someone else's email address cannot be used to take over their
+    account when that person later signs in with Google.
+    """
+    from fastapi.concurrency import run_in_threadpool
+
+    identity = auth.require_identity(request)
+
+    # Validate with read_pending_profile, not verify_state: the two tokens use
+    # different formats, and verify_state rejects a perfectly good pending
+    # profile.
+    sub, google_email, google_name, picture = google_auth.read_pending_profile(
+        request.cookies.get(LINK_COOKIE, ""), auth.get_secret()
+    )
+    if not sub:
+        raise HTTPException(
+            status_code=400, detail="That link request expired. Start again."
+        )
+
+    client = ratelimit.client_address(request)
+    allowed, retry_after = ratelimit.link_limiter.check("link", client, identity.username)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many attempts. Try again in {retry_after}s.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail="Expected a JSON body.")
+
+    password = str((payload or {}).get("password", ""))
+    if not password:
+        raise HTTPException(status_code=400, detail="Enter your current password.")
+
+    user_row = repository.get_user(identity.username)
+    if user_row is None or not user_row.get("password_hash"):
+        raise HTTPException(
+            status_code=400,
+            detail="This account has no password to confirm. Use Continue with "
+            "Google instead.",
+        )
+
+    try:
+        await run_in_threadpool(_verify_credentials, identity.username, password)
+    except auth.AuthError:
+        ratelimit.link_limiter.record_failure("link", client, identity.username)
+        raise HTTPException(status_code=401, detail="That password is not correct.")
+
+    ratelimit.link_limiter.record_success("link", client, identity.username)
+
+    row = repository.link_google_account(
+        user_row["id"], sub, google_email, google_name, picture
+    )
+
+    linked = repository.identity_from_row(row)
+    response = JSONResponse({"status": "ok", "user": linked.as_dict()})
+    response.delete_cookie(LINK_COOKIE, path="/")
+    return response
+
+
+@app.post("/api/link/google/skip")
+async def api_link_google_skip():
+    """Decline linking and keep the separate Google account."""
+    response = JSONResponse({"status": "ok"})
+    response.delete_cookie(LINK_COOKIE, path="/")
+    return response
+
+
+def _constant_time_eq(a: str, b: str) -> bool:
+    import hmac as _hmac
+
+    return _hmac.compare_digest(a.encode(), b.encode())
+
+
+def _login_error_page(message: str):
+    """Send the user back to the login screen with a readable reason."""
+    from urllib.parse import quote
+
+    return RedirectResponse(f"/?error={quote(message)}", status_code=302)
 
 
 # --------------------------------------------------------------------------
@@ -190,6 +588,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
     from fastapi.concurrency import run_in_threadpool
 
+    # Tracking state for this connection.
+    #
+    # ``open_distraction`` is the episode id of a phone sighting that has not
+    # ended yet. The first alerting frame opens an episode, later alerting
+    # frames extend it, and the first clear frame closes it. Without that,
+    # 5 FPS would log a phone pickup as forty separate distractions.
+    user_row = repository.get_user(identity.username)
+    user_id = user_row["id"] if user_row else None
+    focus_session_id: int | None = None
+    open_distraction: int | None = None
+
+    if user_id is not None:
+        focus_session_id = await run_in_threadpool(
+            stats_store.start_focus_session, user_id
+        )
+
     try:
         while True:
             data = await websocket.receive_bytes()
@@ -213,8 +627,21 @@ async def websocket_endpoint(websocket: WebSocket):
             # Run inference off the event loop. Without this, a single slow
             # frame blocks every other request in the process.
             results = await run_in_threadpool(detector.detect_phone, data)
-
             found = bool(results.get("found"))
+
+            if user_id is not None and focus_session_id is not None:
+                try:
+                    open_distraction = await run_in_threadpool(
+                        _record_frame,
+                        user_id,
+                        focus_session_id,
+                        found,
+                        float(results.get("confidence") or 0.0),
+                        open_distraction,
+                    )
+                except Exception:  # noqa: BLE001 - never break detection over stats
+                    log.exception("Could not record frame for stats")
+
             await websocket.send_json(
                 {
                     "status": "ok",
@@ -231,6 +658,52 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close(code=1011, reason="Detection error")
         except RuntimeError:
             pass
+    finally:
+        # Close the episode and the session even if the socket dropped, so
+        # durations are not left open.
+        if user_id is not None and focus_session_id is not None:
+            try:
+                await run_in_threadpool(
+                    _finish_tracking,
+                    user_id,
+                    focus_session_id,
+                    open_distraction,
+                )
+            except Exception:  # noqa: BLE001
+                log.exception("Could not close the focus session")
+
+
+def _record_frame(
+    user_id: int,
+    focus_session_id: int,
+    found: bool,
+    confidence: float,
+    open_distraction: int | None,
+) -> int | None:
+    """Apply one frame to the tracking state machine.
+
+    Returns the new ``open_distraction`` value, which the caller carries to
+    the next frame.
+    """
+    if found:
+        if open_distraction is None:
+            open_distraction = stats_store.begin_distraction(
+                user_id, focus_session_id, confidence, 0.0
+            )
+        else:
+            stats_store.extend_distraction(open_distraction, confidence)
+    elif open_distraction is not None:
+        stats_store.end_distraction(open_distraction)
+        open_distraction = None
+
+    stats_store.bump_session_counters(focus_session_id, 1, 1 if found else 0)
+    return open_distraction
+
+
+def _finish_tracking(user_id: int, focus_session_id: int, open_distraction: int | None) -> None:
+    if open_distraction is not None:
+        stats_store.end_distraction(open_distraction)
+    stats_store.end_focus_session(focus_session_id)
 
 
 def _origin_allowed(websocket: WebSocket) -> bool:
@@ -269,6 +742,16 @@ async def index() -> FileResponse:
 @app.get("/dashboard", include_in_schema=False)
 async def dashboard() -> FileResponse:
     return _page_response("dashboard.html")
+
+
+@app.get("/stats", include_in_schema=False)
+async def stats_page() -> FileResponse:
+    return _page_response("stats.html")
+
+
+@app.get("/link-account", include_in_schema=False)
+async def link_account_page() -> FileResponse:
+    return _page_response("link-account.html")
 
 
 class _RevalidatingStaticFiles(StaticFiles):

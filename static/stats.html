@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="noindex">
+    <title>Statistics &middot; SnapIN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="stats.css">
+</head>
+
+<body>
+    <div class="app">
+        <header class="app-header">
+            <span class="wordmark">
+                <span class="wordmark-dot" aria-hidden="true"></span>
+                SnapIN
+            </span>
+
+            <div class="app-header-right">
+                <a class="btn btn-ghost btn-compact" href="dashboard.html">Dashboard</a>
+                <button type="button" class="btn btn-ghost btn-compact" id="logout-btn">
+                    Sign out
+                </button>
+            </div>
+        </header>
+
+        <main class="stats-main">
+            <div class="stats-head">
+                <div>
+                    <h1 class="stats-title">Statistics</h1>
+                    <p class="stats-sub" id="range-label">Last 7 days</p>
+                </div>
+                <div class="segmented" role="group" aria-label="Date range">
+                    <button type="button" class="segmented-btn" data-days="7">7d</button>
+                    <button type="button" class="segmented-btn" data-days="30">30d</button>
+                    <button type="button" class="segmented-btn" data-days="90">90d</button>
+                </div>
+            </div>
+
+            <p class="alert-banner" id="stats-error" role="alert">
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+                    <path d="M8 4.5v4.5M8 11.2v.3" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" />
+                </svg>
+                <span id="stats-error-text"></span>
+            </p>
+
+            <section class="metrics" aria-label="Summary">
+                <article class="metric">
+                    <p class="metric-label">Focus time</p>
+                    <p class="metric-value" id="m-focus">&mdash;</p>
+                    <p class="metric-note" id="m-focus-note"></p>
+                </article>
+                <article class="metric">
+                    <p class="metric-label">Phone pickups</p>
+                    <p class="metric-value" id="m-episodes">&mdash;</p>
+                    <p class="metric-note" id="m-episodes-note"></p>
+                </article>
+                <article class="metric">
+                    <p class="metric-label">Sessions</p>
+                    <p class="metric-value" id="m-sessions">&mdash;</p>
+                    <p class="metric-note" id="m-sessions-note"></p>
+                </article>
+                <article class="metric">
+                    <p class="metric-label">Time on phone</p>
+                    <p class="metric-value" id="m-distracted">&mdash;</p>
+                    <p class="metric-note" id="m-distracted-note"></p>
+                </article>
+            </section>
+
+            <section class="card">
+                <div class="card-head">
+                    <h2 class="card-title">Focus time per day</h2>
+                    <p class="card-note" id="chart-empty" hidden>No sessions recorded yet.</p>
+                </div>
+                <div class="chart" id="chart-daily" role="img" aria-label="Focus time per day"></div>
+                <div class="legend">
+                    <span class="legend-item">
+                        <span class="legend-swatch legend-focus"></span> Focus time
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-swatch legend-phone"></span> Phone time
+                    </span>
+                </div>
+            </section>
+
+            <div class="card-row">
+                <section class="card">
+                    <div class="card-head">
+                        <h2 class="card-title">When you get distracted</h2>
+                        <p class="card-note">Episodes by hour of day, last 30 days</p>
+                    </div>
+                    <div class="chart chart-hours" id="chart-hourly" role="img"
+                        aria-label="Distractions by hour of day"></div>
+                </section>
+
+                <section class="card">
+                    <div class="card-head">
+                        <h2 class="card-title">Recent pickups</h2>
+                        <p class="card-note" id="recent-empty" hidden>Nothing recorded yet.</p>
+                    </div>
+                    <ol class="episodes" id="episodes"></ol>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="stats.js"></script>
+</body>
+
+</html>

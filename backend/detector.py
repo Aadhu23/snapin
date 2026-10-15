@@ -5,6 +5,11 @@ instance is reused across every WebSocket client, and Ultralytics model
 objects are not documented as safe for concurrent ``__call__`` invocations.
 A lock serialises inference, and callers are expected to run
 :meth:`detect_phone` in a worker thread so the event loop stays free.
+
+Heavy dependencies are imported lazily so the HTTP layer still boots when the
+ML stack is missing or broken. That keeps the login page, health check, and
+static assets serving, and lets ``/api/health`` report the model as degraded
+instead of the whole process dying at import time.
 """
 
 from __future__ import annotations
@@ -13,10 +18,10 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import cv2
-import numpy as np
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    import numpy as np
 
 log = logging.getLogger("snapin.detector")
 
@@ -145,6 +150,9 @@ class StudyGuardDetector:
     @staticmethod
     def decode(frame_bytes: bytes) -> "np.ndarray | None":
         """Decode encoded image bytes into a BGR frame, or None if undecodable."""
+        import cv2
+        import numpy as np
+
         if not frame_bytes:
             return None
         buffer = np.frombuffer(frame_bytes, np.uint8)
@@ -153,6 +161,8 @@ class StudyGuardDetector:
     def _dump_debug_frame(self, frame: "np.ndarray") -> None:
         if not self.save_debug:
             return
+        import cv2
+
         try:
             self.debug_dir.mkdir(parents=True, exist_ok=True)
             self._debug_counter += 1
@@ -162,7 +172,7 @@ class StudyGuardDetector:
             if self._debug_counter > 50:
                 oldest = self.debug_dir / f"debug_input_{self._debug_counter - 49:06d}.jpg"
                 oldest.unlink(missing_ok=True)
-        except (OSError, cv2.error) as exc:  # pragma: no cover - filesystem dependent
+        except OSError as exc:  # pragma: no cover - filesystem dependent
             log.warning("Could not write debug frame: %s", exc)
 
     # ------------------------------------------------------------------

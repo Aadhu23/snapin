@@ -28,6 +28,11 @@ if str(BACKEND_DIR) not in sys.path:
 
 import cv2  # noqa: E402
 
+import env as env_loader  # noqa: E402
+
+# So tune.py reports the same gates the running server uses.
+env_loader.load_env()
+
 
 def _load_detector(conf_threshold, area_threshold, imgsz, tta=None):
     """Build a detector using the server's real defaults unless overridden.

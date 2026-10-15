@@ -35,6 +35,12 @@ USER snapin
 
 EXPOSE 8000
 
+# The app needs PostgreSQL. Link a running server with --network, or point
+# DATABASE_URL at a hosted instance.
+ENV PGHOST=postgres \
+    PGPORT=5432 \
+    PGDATABASE=snapin
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status==200 else 1)"
 

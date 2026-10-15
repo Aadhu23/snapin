@@ -1,331 +1,780 @@
+/* SnapIN design system
+   -------------------
+   One dark theme, one accent (near-white), hairline borders, a 4px spacing
+   scale, and no decorative effects. Everything that could read as a default
+   or a template is deliberately absent: no gradients, no glows, no emoji,
+   no oversized rounded pills.
+
+   Contents
+     1. Tokens
+     2. Reset
+     3. Primitives (button, input, divider, badge)
+     4. Auth
+     5. App shell
+     6. Dashboard
+     7. Motion + responsive
+*/
+
+/* 1. Tokens ------------------------------------------------------------- */
+
 :root {
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
-    --bg-dark: #0f172a;
-    --surface: #1e293b;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --danger: #ef4444;
-    --success: #22c55e;
+    /* Surfaces, darkest to lightest. */
+    --bg: #08080a;
+    --surface: #0f0f12;
+    --surface-raised: #16161a;
+    --surface-hover: #1c1c21;
+
+    /* Hairlines. */
+    --border: #232328;
+    --border-strong: #2f2f36;
+
+    /* Text. */
+    --text: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+
+    /* Accent is near-white on purpose: a single bright element reads as
+       intentional, where a coloured accent on black reads as decoration. */
+    --accent: #f4f4f5;
+    --accent-hover: #ffffff;
+    --accent-fg: #08080a;
+
+    /* Status. Muted so they do not fight the accent for attention. */
+    --danger: #e5484d;
+    --danger-surface: #1c1113;
+    --success: #3fb98a;
+
+    /* Spacing scale. */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+    --sp-6: 32px;
+    --sp-7: 48px;
+
+    /* Radii. Small values keep it from looking like a consumer app. */
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 12px;
+
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    --transition: 120ms cubic-bezier(0.2, 0, 0.2, 1);
 }
 
-* {
+/* 2. Reset -------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
-    font-family: 'Outfit', sans-serif;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+/* The browser's default `[hidden] { display: none }` lives in the user-agent
+   stylesheet, so any author `display` rule silently beats it. That made the
+   `hidden` attribute a no-op on every element with a display rule -- which is
+   why "Confirm password" appeared on the sign-in form. One line restores it
+   everywhere, and it is the only `!important` in this file apart from the
+   reduced-motion block below. */
+[hidden] {
+    display: none !important;
 }
 
 body {
-    background-color: var(--bg-dark);
-    color: var(--text-main);
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+button,
+input {
+    font: inherit;
+    color: inherit;
+}
+
+a {
+    color: var(--text);
+    text-decoration: none;
+}
+
+::selection {
+    background: var(--accent);
+    color: var(--accent-fg);
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* 3. Primitives --------------------------------------------------------- */
+
+.btn {
+    display: inline-flex;
     align-items: center;
-    overflow: hidden;
+    justify-content: center;
+    gap: var(--sp-2);
+    height: 38px;
+    padding: 0 var(--sp-4);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: transparent;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition), border-color var(--transition),
+        color var(--transition), opacity var(--transition);
 }
 
-.container {
-    width: 100%;
-    max-width: 1200px;
-    padding: 2rem;
-    position: relative;
+.btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
-/* --- Login Screen --- */
-#login-screen {
+/* Primary: inverted, the single brightest element on the page. */
+.btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Secondary: outlined, sits quietly beneath the primary. */
+.btn-secondary {
+    background: var(--surface-raised);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+}
+
+.btn-ghost {
+    color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    color: var(--text);
+    background: var(--surface-raised);
+}
+
+.btn-compact {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.field {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.5s ease-out;
+    gap: var(--sp-2);
 }
 
-.glass-card {
-    background: rgba(30, 56, 59, 0.7);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 3rem;
-    border-radius: 20px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+.field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.input {
     width: 100%;
-    max-width: 400px;
+    height: 38px;
+    padding: 0 var(--sp-3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    transition: border-color var(--transition), background var(--transition);
+}
+
+.input::placeholder {
+    color: var(--text-tertiary);
+}
+
+.input:hover:not(:focus) {
+    border-color: var(--border-strong);
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface-raised);
+}
+
+.input[aria-invalid='true'] {
+    border-color: var(--danger);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    color: var(--text-tertiary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.alert-banner {
+    display: none;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    background: var(--danger-surface);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
+    color: #ffc9cb;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.alert-banner.visible {
+    display: flex;
+}
+
+.alert-banner svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.wordmark-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 1px;
+}
+
+/* 4. Auth --------------------------------------------------------------- */
+
+.auth {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: var(--sp-6);
+}
+
+.auth-inner {
+    width: 100%;
+    max-width: 380px;
+}
+
+.auth-header {
+    margin-bottom: var(--sp-6);
     text-align: center;
 }
 
-h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.subtitle {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
-}
-
-.input-group {
-    margin-bottom: 1.5rem;
-    text-align: left;
-}
-
-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-}
-
-input {
-    width: 100%;
-    padding: 12px 16px;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    color: white;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-}
-
-input:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-}
-
-button.btn-primary {
-    width: 100%;
-    padding: 14px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    border: none;
-    border-radius: 12px;
-    color: white;
+.auth-title {
+    margin: var(--sp-5) 0 var(--sp-2);
+    font-size: 20px;
     font-weight: 600;
-    font-size: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.auth-subtitle {
+    color: var(--text-tertiary);
+    font-size: 13px;
+}
+
+.field-hint {
+    color: var(--text-tertiary);
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+.field-hint-warn {
+    color: #d9a441;
+}
+
+.field-optional {
+    color: var(--text-tertiary);
+    font-weight: 400;
+}
+
+.auth-switch {
+    margin-top: var(--sp-4);
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
+/* An underlined text button, not a boxed one: it is a navigation affordance,
+   not an action with a side effect. */
+.link-button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--border-strong);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: text-decoration-color var(--transition);
 }
 
-button.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+.link-button:hover {
+    text-decoration-color: var(--text);
 }
 
-.login-error {
-    color: var(--danger);
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-    min-height: 1.2em;
-    text-align: left;
+.link-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
 }
 
-button.btn-primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* --- Dashboard Screen --- */
-#dashboard-screen {
-    display: flex;
-    /* Visible by default for the separate dashboard page */
+.btn-block {
     width: 100%;
-    height: 100vh;
+    margin-top: var(--sp-3);
+}
+
+.link-card {
+    margin-bottom: var(--sp-5);
+    padding: var(--sp-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.link-line {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.link-line strong {
+    font-weight: 600;
+}
+
+.link-note {
+    margin-top: var(--sp-2);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.auth-form {
+    display: flex;
     flex-direction: column;
-    padding: 2rem;
+    gap: var(--sp-4);
 }
 
-header {
+.auth-form .btn {
+    height: 40px;
+    margin-top: var(--sp-1);
+}
+
+.auth-alt {
     display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    margin-top: var(--sp-5);
+}
+
+.auth-footer {
+    margin-top: var(--sp-6);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.auth-footer code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.auth-footer-note {
+    margin: calc(var(--sp-3) * -1 + 2px) 0 0;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.google-mark {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+}
+
+/* 5. App shell ---------------------------------------------------------- */
+
+.app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
+    gap: var(--sp-4);
+    height: 52px;
+    padding: 0 var(--sp-5);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
 }
 
-.header-right {
+.app-header-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sp-3);
 }
 
-.user-label {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-}
-
-.user-label:empty {
-    display: none;
-}
-
-.btn-logout {
-    padding: 6px 14px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-logout:hover {
-    color: white;
-    border-color: rgba(255, 255, 255, 0.35);
-}
-
-.status-badge {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    background: rgba(255, 255, 255, 0.1);
-    display: flex;
+.status {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-3);
+    height: 26px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background-color: var(--danger);
-    box-shadow: 0 0 10px var(--danger);
+    background: var(--text-tertiary);
+    transition: background var(--transition);
 }
 
-.status-dot.active {
-    background-color: var(--success);
-    box-shadow: 0 0 10px var(--success);
+.status-dot.live {
+    background: var(--success);
+    box-shadow: 0 0 0 3px rgb(63 185 138 / 0.15);
 }
 
-.main-content {
+.status-dot.error {
+    background: var(--danger);
+    box-shadow: 0 0 0 3px rgb(229 72 77 / 0.15);
+}
+
+.identity {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.identity-name {
+    font-weight: 500;
+    color: var(--text);
+}
+
+.avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+}
+
+.avatar-fallback {
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* 6. Dashboard ---------------------------------------------------------- */
+
+.app-main {
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-5);
+    padding: var(--sp-6) var(--sp-5);
+}
+
+.stage {
+    position: relative;
+    width: 100%;
+    max-width: 880px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.stage video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* mirror, so it feels like a mirror not a camera */
+    display: block;
+}
+
+.stage-empty {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    position: relative;
-}
-
-.video-container {
-    width: 80%;
-    max-width: 900px;
-    aspect-ratio: 16/9;
-    background: #000;
-    border-radius: 24px;
-    overflow: hidden;
-    position: relative;
-    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-    /* Mirror effect */
-}
-
-.overlay-message {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(239, 68, 68, 0.9);
-    padding: 2rem 4rem;
-    border-radius: 20px;
+    gap: var(--sp-2);
+    color: var(--text-tertiary);
+    font-size: 13px;
     text-align: center;
-    backdrop-filter: blur(8px);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 10;
+    padding: var(--sp-5);
 }
 
-.overlay-message.visible {
-    opacity: 1;
-    animation: pulse-alert 2s infinite;
+.stage-empty.hidden {
+    display: none;
 }
 
-@keyframes pulse-alert {
-    0% {
-        transform: translate(-50%, -50%) scale(1);
-    }
-
-    50% {
-        transform: translate(-50%, -50%) scale(1.05);
-    }
-
-    100% {
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
-/* The overlay must sit above the video and never intercept pointer events,
-   otherwise it swallows clicks meant for the controls underneath. */
-.overlay-message {
+/* Alert overlay. Deliberately plain: a tinted panel with a hard border,
+   not a translucent slab with a blur. */
+.alert-overlay {
+    position: absolute;
+    inset: auto var(--sp-5) var(--sp-5) var(--sp-5);
+    display: none;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+    background: rgb(12 6 7 / 0.94);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
     pointer-events: none;
 }
 
-.alert-detail {
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
-    font-weight: 500;
-    opacity: 0.85;
+.alert-overlay.visible {
+    display: flex;
+    animation: alert-in 160ms ease-out;
+}
+
+.stage-empty-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    opacity: 0.8;
+}
+
+.alert-overlay-icon {
+    flex-shrink: 0;
+    color: var(--danger);
+}
+
+.alert-overlay-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.alert-overlay-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ff9ea0;
+    letter-spacing: -0.01em;
+}
+
+.alert-overlay-meta {
+    font-size: 12px;
+    color: var(--text-tertiary);
     font-variant-numeric: tabular-nums;
 }
 
-.overlay-message h2 {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
+.alert-badge {
+    margin-left: auto;
+    padding: 2px var(--sp-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
     text-transform: uppercase;
-    letter-spacing: 2px;
 }
 
 .controls {
-    margin-top: 2rem;
     display: flex;
-    gap: 1rem;
+    gap: var(--sp-3);
 }
 
-.btn-toggle {
-    padding: 16px 32px;
-    border-radius: 50px;
-    border: none;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    background: var(--surface);
-    color: white;
-    transition: all 0.3s ease;
+/* Account bar -----------------------------------------------------------
+   Shows which sign-in methods the current account has, so a linked Google
+   identity is visible rather than a surprise at the next sign-in. */
+
+.account-bar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sp-4);
+    width: 100%;
+    max-width: 880px;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
 }
 
-.btn-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
+.account-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
-.btn-toggle.active {
-    background: var(--success);
-    color: #000;
+.account-username {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-@keyframes fadeIn {
+.account-email {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.account-methods {
+    margin-left: auto;
+    padding: 2px var(--sp-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.account-bar .btn {
+    flex-shrink: 0;
+}
+
+/* 7. Motion + responsive ------------------------------------------------ */
+
+@keyframes alert-in {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(4px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-inner,
+.app-main {
+    animation: fade-in 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .app-header {
+        padding: 0 var(--sp-4);
+    }
+
+    .identity-name {
+        display: none;
+    }
+
+    .app-main {
+        padding: var(--sp-5) var(--sp-4);
+    }
+
+    .account-bar {
+        flex-wrap: wrap;
+        gap: var(--sp-2);
+    }
+
+    .account-methods {
+        margin-left: 0;
+    }
+
+    .controls {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .controls .btn {
+        width: 100%;
     }
 }

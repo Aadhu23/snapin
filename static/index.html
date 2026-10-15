@@ -4,31 +4,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapIN - Login</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="noindex">
+    <title>Sign in &middot; SnapIN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+    <main class="auth">
+        <div class="auth-inner">
+            <header class="auth-header">
+                <span class="wordmark">
+                    <span class="wordmark-dot" aria-hidden="true"></span>
+                    SnapIN
+                </span>
+                <h1 class="auth-title" id="auth-title">Sign in</h1>
+                <p class="auth-subtitle" id="auth-sub">Focus mode for your workspace</p>
+            </header>
 
-    <div id="login-screen" class="container">
-        <div class="glass-card">
-            <h1>SnapIN</h1>
-            <p class="subtitle">Focus Mode Authentication</p>
-            <form id="login-form">
-                <div class="input-group">
-                    <label>Username</label>
-                    <input type="text" placeholder="Enter your username" required>
+            <div id="login-error" class="alert-banner" role="alert" aria-live="assertive">
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+                    <path d="M8 4.5v4.5M8 11.2v.3" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" />
+                </svg>
+                <span id="login-error-text"></span>
+            </div>
+
+            <form id="login-form" class="auth-form" novalidate>
+                <div class="field">
+                    <label class="field-label" for="username">Username</label>
+                    <input class="input" id="username" name="username" type="text"
+                        autocomplete="username" autocapitalize="none" spellcheck="false"
+                        placeholder="yourname" required>
                 </div>
-                <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" placeholder="Enter your password" required>
+
+                <!-- Only shown when creating an account. -->
+                <div class="field" id="email-field" hidden>
+                    <label class="field-label" for="email">
+                        Email <span class="field-optional">optional</span>
+                    </label>
+                    <input class="input" id="email" name="email" type="email"
+                        autocomplete="email" autocapitalize="none" spellcheck="false"
+                        placeholder="you@example.com">
+                    <p class="field-hint">
+                        Lets you sign in with Google later. Without it, Google
+                        creates a separate account.
+                    </p>
                 </div>
-                <p id="login-error" class="login-error" role="alert"></p>
-                <button type="submit" class="btn-primary">Enter Workspace</button>
+
+                <div class="field">
+                    <label class="field-label" for="password">Password</label>
+                    <input class="input" id="password" name="password" type="password"
+                        autocomplete="current-password" placeholder="••••••••" required>
+                    <p class="field-hint field-hint-warn" id="password-hint" hidden></p>
+                </div>
+
+                <!-- Only shown when creating an account. -->
+                <div class="field" id="confirm-field" hidden>
+                    <label class="field-label" for="confirm">Confirm password</label>
+                    <input class="input" id="confirm" name="confirm" type="password"
+                        autocomplete="new-password" placeholder="••••••••">
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="submit-btn">Sign in</button>
             </form>
+
+            <p class="auth-switch">
+                <span id="switch-prompt">New here?</span>
+                <button type="button" class="link-button" id="switch-mode">Create an account</button>
+            </p>
+
+            <div class="auth-alt">
+                <div class="divider">or</div>
+                <button type="button" class="btn btn-secondary" id="google-btn">
+                    <svg class="google-mark" viewBox="0 0 18 18" aria-hidden="true">
+                        <path fill="#4285F4"
+                            d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />
+                        <path fill="#34A853"
+                            d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+                        <path fill="#FBBC05"
+                            d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
+                        <path fill="#EA4335"
+                            d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+                    </svg>
+                    Continue with Google
+                </button>
+                <p id="google-hint" class="auth-footer-note" hidden></p>
+            </div>
         </div>
-    </div>
+    </main>
 
     <script src="login.js"></script>
 </body>
